@@ -2,7 +2,9 @@ from django.utils import timezone
 
 from rest_framework import serializers
 
+from books.serializers import BookSerializer
 from borrowings.models import Borrowing
+from users.serializers import UserSerializer
 
 
 class BorrowingSerializer(serializers.ModelSerializer):
@@ -31,6 +33,22 @@ class BorrowingListSerializer(serializers.ModelSerializer):
 
     def get_user_full_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+
+class BorrowingDetailSerializer(serializers.ModelSerializer):
+    book = BookSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Borrowing
+        fields = [
+            "id",
+            "borrow_date",
+            "expected_return_date",
+            "actual_return_date",
+            "book",
+            "user",
+        ]
 
 
 class BorrowingCreateSerializer(serializers.ModelSerializer):

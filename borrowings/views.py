@@ -8,6 +8,7 @@ from borrowings.serializers import (
     BorrowingSerializer,
     BorrowingReturnSerializer,
     BorrowingListSerializer,
+    BorrowingDetailSerializer,
 )
 
 
@@ -21,6 +22,8 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             return BorrowingReturnSerializer
         if self.action == "list":
             return BorrowingListSerializer
+        if self.action == "retrieve":
+            return BorrowingDetailSerializer
         return BorrowingSerializer
 
     def get_queryset(self):
