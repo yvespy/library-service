@@ -24,5 +24,6 @@ urlpatterns = [
     path("api/", include("books.urls")),
     path("users/", include("users.urls")),
     path("borrowings/", include("borrowings.urls")),
+    path("payments/", include("payments.urls")),
     path("__debug__", include(debug_toolbar.urls)),
 ]

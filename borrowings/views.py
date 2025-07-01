@@ -1,15 +1,15 @@
-from rest_framework.decorators import action
+from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework import status, viewsets, permissions
-
 from borrowings.models import Borrowing
 from borrowings.serializers import (
     BorrowingCreateSerializer,
-    BorrowingSerializer,
-    BorrowingReturnSerializer,
     BorrowingListSerializer,
     BorrowingDetailSerializer,
+    BorrowingReturnSerializer,
 )
+from payments.models import Payment
+from payments.serializers import PaymentCreateSerializer
+from rest_framework.decorators import action
 
 
 class BorrowingViewSet(viewsets.ModelViewSet):
@@ -24,7 +24,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             return BorrowingListSerializer
         if self.action == "retrieve":
             return BorrowingDetailSerializer
-        return BorrowingSerializer
+        return BorrowingCreateSerializer
 
     def get_queryset(self):
         queryset = self.queryset
@@ -40,7 +40,17 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save()
+        borrowing = serializer.save(user=self.request.user)
+
+        payment_serializer = PaymentCreateSerializer(
+            data={
+                "borrowing": borrowing.id,
+                "type": Payment.Type.PAYMENT,
+            },
+            context={"request": self.request},
+        )
+        payment_serializer.is_valid(raise_exception=True)
+        payment_serializer.save()
 
     @action(detail=True, methods=["post"])
     def return_borrowing(self, request, pk=None):
