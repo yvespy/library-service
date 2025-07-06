@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from books.serializers import BookSerializer
 from borrowings.models import Borrowing
+from payments.models import Payment
 from users.serializers import UserSerializer
 
 
@@ -87,4 +88,18 @@ class BorrowingReturnSerializer(serializers.ModelSerializer):
         book = self.instance.book
         book.inventory += 1
         book.save()
+
+        if self.instance.actual_return_date > self.instance.expected_return_date:
+            days_overdue = (
+                self.instance.actual_return_date - self.instance.expected_return_date
+            ).days
+            fine_amount = days_overdue * self.instance.book.daily_fee * 2
+
+            Payment.objects.create(
+                borrowing=self.instance,
+                status=Payment.Status.PENDING,
+                type=Payment.Type.FINE,
+                money_to_pay=fine_amount,
+            )
+
         return self.instance
