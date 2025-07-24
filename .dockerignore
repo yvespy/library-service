@@ -1,0 +1,13 @@
+.idea/
+.vscode/
+*.iml
+venv/
+**__pycache__/
+db.sqlite3
+media
+Dockerfile
+docker-compose.yaml
+.git
+.gitignore
+.env
+README.md
