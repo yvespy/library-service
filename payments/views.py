@@ -1,12 +1,30 @@
 from decimal import Decimal
 import stripe
 from rest_framework import viewsets, permissions, status
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiParameter,
+    OpenApiResponse,
+)
 from payments.models import Payment
 from payments.serializers import PaymentSerializer
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List payments",
+        description="Retrieve a list of all payments. Admins see all, users only their own.",
+        responses={200: PaymentSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve payment",
+        description="Get details of a specific payment by ID.",
+        responses={200: PaymentSerializer},
+    ),
+)
 class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Payment.objects.all()
     permission_classes = [permissions.IsAuthenticated]
@@ -20,6 +38,14 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             return Payment.objects.all()
         return Payment.objects.filter(borrowing__user=user)
 
+    @extend_schema(
+        summary="Create Stripe payment session",
+        description="Creates a Stripe Checkout session for a given payment.",
+        responses={
+            200: OpenApiResponse(description="Stripe session created, URL returned"),
+            400: OpenApiResponse(description="Already paid or session exists"),
+        },
+    )
     @action(detail=True, methods=["post"])
     def pay(self, request, pk=None):
         payment = self.get_object()
@@ -73,6 +99,19 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({"url": session.url}, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    summary="Stripe success callback",
+    description="Stripe redirects here after a successful payment. This view updates the payment status.",
+    parameters=[
+        OpenApiParameter(name="session_id", required=True, type=str),
+        OpenApiParameter(name="type", required=False, type=str),
+    ],
+    responses={
+        200: OpenApiResponse(description="Payment updated"),
+        400: OpenApiResponse(),
+        404: OpenApiResponse(),
+    },
+)
 @api_view(["GET"])
 def stripe_success(request):
     session_id = request.query_params.get("session_id")
@@ -110,6 +149,11 @@ def stripe_success(request):
     return Response({"message": message})
 
 
+@extend_schema(
+    summary="Stripe cancel callback",
+    description="Stripe redirects here if the payment was canceled.",
+    responses={200: OpenApiResponse(description="Payment canceled")},
+)
 @api_view(["GET"])
 def stripe_cancel(request):
     return Response({"message": "Payment was canceled or failed."})

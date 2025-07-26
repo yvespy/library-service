@@ -1,5 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+
 from borrowings.models import Borrowing
 from borrowings.serializers import (
     BorrowingCreateSerializer,
@@ -9,9 +12,37 @@ from borrowings.serializers import (
 )
 from payments.models import Payment
 from payments.serializers import PaymentCreateSerializer
-from rest_framework.decorators import action
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List borrowings",
+        description="Returns a list of borrowings. Supports filtering by `user_id` and `is_active`.",
+        parameters=[
+            OpenApiParameter(name="user_id", description="Filter by user ID", required=False, type=int),
+            OpenApiParameter(name="is_active", description="Filter by active status (`true` or `false`)", required=False, type=bool),
+        ],
+        responses={200: BorrowingListSerializer(many=True)}
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve borrowing",
+        description="Get detailed information about a specific borrowing.",
+        responses={200: BorrowingDetailSerializer}
+    ),
+    create=extend_schema(
+        summary="Create borrowing",
+        description="Creates a borrowing and automatically generates a related payment.",
+        request=BorrowingCreateSerializer,
+        responses={201: BorrowingCreateSerializer}
+    ),
+    update=extend_schema(exclude=True),
+    partial_update=extend_schema(exclude=True),
+    destroy=extend_schema(
+        summary="Delete borrowing",
+        description="Deletes the borrowing entry.",
+        responses={204: None}
+    ),
+)
 class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.select_related("book", "user").all()
 
@@ -52,6 +83,11 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         payment_serializer.is_valid(raise_exception=True)
         payment_serializer.save()
 
+    @extend_schema(
+        summary="Return a book",
+        description="Marks a borrowing as returned. If overdue, generates a fine payment.",
+        responses={200: None},
+    )
     @action(detail=True, methods=["post"])
     def return_borrowing(self, request, pk=None):
         borrowing = self.get_object()
